@@ -4,6 +4,14 @@ from signal import pause
 from thread import start_new_thread
 import RPi.GPIO as GPIO
 
+from os import listdir, system
+from os.path import isfile, join
+import random
+
+wav_files = [f for f in listdir("./wav/") if isfile(join("./wav/", f)) and f.endswith(".wav")]
+
+next_sound=None
+
 # start mit python /home/pi/blinkenlights/blinkenlights.py
 
 led1 = LED(5)
@@ -11,7 +19,6 @@ led2 = LED(11)
 led3 = LED(9)
 led4 = LED(10)
 led5 = LED(22)
-
 
 button1 = Button(2)
 button2 = Button(3)
@@ -189,6 +196,7 @@ def eval_button_states():
 def eval_action():
     global button_state
     global action
+    global next_sound
     default_action=None
     new_button_state = eval_button_states()
     if button_state != new_button_state:
@@ -199,6 +207,7 @@ def eval_action():
             print("Button state: {} => default_action".format(button_state))
         else:
             print("Button state: {}".format(button_state))
+        next_sound = random.choice(wav_files)
 
 
 def on_button():
@@ -228,9 +237,29 @@ actions[25]=inner_to_outer
 #    button.when_pressed = on_button
 #    button.when_released = on_button
 
+def play_sound():
+    global next_sound
+    if next_sound != None:
+        system("aplay  -D sysdefault:CARD=Device wav/" + next_sound )
+
+
+def watch_next_sound():
+    global keep_running;
+    global next_sound
+    while keep_running:
+        if next_sound != None:
+            try:
+                play_sound()
+            finally:
+                next_sound=None
+        else:
+            all_off()
+            sleep(0.05)
+
 try:
     blink_all()
     start_new_thread(watch_action, ())
+    start_new_thread(watch_next_sound, ())
     pause()
 finally:
     print("finally")
